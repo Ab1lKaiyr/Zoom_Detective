@@ -1,0 +1,478 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Zoom Detective</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a header with the score; one stage = the mystery picture with its zoom controls beside the answer panel. */
+:root{
+  --paper:#ECEFF5; --panel:#FFFFFF; --ink:#151C30; --ink-soft:#566079; --line:#D6DCE7;
+  --plate:#1E263E; --plate-edge:#2C3654; --on-plate:#F4F6FB; --plate-ink:#9AA5C2;
+  --key:#F8F9FC; --key-edge:#D9DFE9; --key-skirt:#B4BED2; --shadow:rgba(20,28,52,.16);
+  --accent:#FF7A1A; --accent-deep:#C4560B; --accent-text:#A84808; --accent-ink:#1E1105; --accent-soft:#FFE7D4;
+  --raster:#FF7A1A; --raster-deep:#C4560B; --vector:#2F6BFF; --vector-deep:#1F4FD6; --vector-soft:#E3EBFF;
+  --good:#127A45; --good-soft:#DCF3E6; --good-line:#86CFA6; --bad:#C9353C; --bad-soft:#FBE3E3; --bad-line:#EFA3A6;
+  --focus:#2F6BFF;
+  --font-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --font-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1220; --panel:#151C2F; --ink:#E8ECF5; --ink-soft:#A0AAC2; --line:#273149;
+    --plate:#070A14; --plate-edge:#1A2236; --on-plate:#F4F6FB; --plate-ink:#7C88A6;
+    --key:#242D45; --key-edge:#313C59; --key-skirt:#0E1322; --shadow:rgba(0,0,0,.5);
+    --accent-text:#FF9F57; --accent-soft:#3B2615; --vector-soft:#18264A;
+    --good:#46D08A; --good-soft:#123323; --good-line:#2E7D55; --bad:#FF7479; --bad-soft:#3B171B; --bad-line:#8E3A3F;
+    --focus:#86A8FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1220; --panel:#151C2F; --ink:#E8ECF5; --ink-soft:#A0AAC2; --line:#273149;
+  --plate:#070A14; --plate-edge:#1A2236; --on-plate:#F4F6FB; --plate-ink:#7C88A6;
+  --key:#242D45; --key-edge:#313C59; --key-skirt:#0E1322; --shadow:rgba(0,0,0,.5);
+  --accent-text:#FF9F57; --accent-soft:#3B2615; --vector-soft:#18264A;
+  --good:#46D08A; --good-soft:#123323; --good-line:#2E7D55; --bad:#FF7479; --bad-soft:#3B171B; --bad-line:#8E3A3F;
+  --focus:#86A8FF; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 40px}
+button,input{font:inherit;color:inherit}
+h1,h2,p{margin:0}
+.wrap{max-width:1180px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:14px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:44px;height:44px;border-radius:12px;background:var(--plate);display:grid;place-items:center;flex:none}
+.mark svg{width:28px;height:28px}
+.brand b{font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1.1}
+.brand small{display:block;color:var(--ink-soft);font-size:13px}
+.scores{display:flex;gap:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-variant-numeric:tabular-nums}
+.chip b{font-family:var(--font-display);font-size:22px}
+.chip.turn{border:2px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.key{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:10px 20px;border-radius:12px;border:1px solid var(--key-edge);
+  background:var(--key);color:var(--ink);font-weight:600;cursor:pointer;box-shadow:0 4px 0 var(--key-skirt);transition:transform .07s,box-shadow .07s;-webkit-tap-highlight-color:transparent}
+.key:active:not([disabled]){transform:translateY(3px);box-shadow:0 1px 0 var(--key-skirt)}
+.key:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.key[disabled]{cursor:default}
+.key.primary{background:var(--accent);border-color:var(--accent-deep);color:var(--accent-ink);box-shadow:0 4px 0 var(--accent-deep)}
+.key.small{min-height:40px;padding:6px 12px;font-size:15px}
+.key svg{width:22px;height:22px;flex:none}
+/* start */
+.start{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:center}
+.start h1{font-family:var(--font-display);font-size:clamp(40px,6vw,72px);line-height:1;font-weight:700;margin-bottom:14px}
+.start h1 span{color:var(--accent-text)}
+.lead{font-size:20px;color:var(--ink-soft);max-width:44ch;margin-bottom:20px}
+.rules{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:12px}
+.rules li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start}
+.rules .n{width:36px;height:36px;border-radius:50%;background:var(--plate);color:var(--on-plate);display:grid;place-items:center;font-family:var(--font-display);font-weight:700}
+.modes{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.modes .key[aria-pressed="true"]{background:var(--plate);color:var(--on-plate);border-color:var(--accent)}
+.teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:20px;max-width:460px}
+.teams label{display:grid;gap:4px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.teams input{min-height:46px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.teams input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.hero-art{background:var(--plate);border-radius:24px;padding:22px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;box-shadow:0 20px 40px var(--shadow)}
+.hero-art figure{margin:0;display:grid;gap:8px}
+.hero-art figcaption{color:var(--on-plate);font-family:var(--font-mono);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.hero-art .view{border-radius:14px}
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,620px) minmax(0,420px);justify-content:center;gap:22px;align-items:start}
+.board .view{width:min(100%, 60vh);margin:0 auto}
+.board{background:var(--plate);border-radius:22px;padding:18px;border:1px solid var(--plate-edge);box-shadow:0 20px 40px var(--shadow)}
+.board-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:var(--plate-ink);font-family:var(--font-mono);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.view{position:relative;width:100%;aspect-ratio:1/1;max-width:100%;border-radius:16px;overflow:hidden;background:#FFFFFF;cursor:zoom-in;touch-action:manipulation}
+.view canvas{position:absolute;left:0;top:0;image-rendering:crisp-edges;image-rendering:pixelated}
+.view svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.view .ping{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:3px solid var(--accent);pointer-events:none;animation:ping .6s ease-out forwards}
+.zoom{display:flex;align-items:center;gap:12px;margin-top:14px}
+.zoom input{flex:1;min-width:0;accent-color:var(--accent);height:32px}
+.zoom input:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:6px}
+.zoom .key{min-height:44px;min-width:48px;padding:6px;font-family:var(--font-display);font-size:24px;line-height:1}
+.zval{font-family:var(--font-display);font-weight:700;font-size:28px;color:var(--on-plate);min-width:72px;text-align:right;font-variant-numeric:tabular-nums}
+.tip{margin-top:10px;color:var(--plate-ink);font-size:15px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;display:grid;gap:16px}
+.round-lbl{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.who{font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1.15}
+.timer{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left;transition:transform .25s linear}
+.timer.low i{background:var(--bad)}
+.tsec{font-family:var(--font-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.q{font-size:20px;font-weight:600}
+.answers{display:grid;gap:14px}
+.ans{justify-content:flex-start;min-height:76px;font-size:20px;text-align:left;padding:12px 18px}
+.ans .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none}
+.ans.r .ic{background:var(--accent-soft);color:var(--raster-deep)}
+.ans.v .ic{background:var(--vector-soft);color:var(--vector-deep)}
+.ans .ic svg{width:28px;height:28px}
+.ans small{display:block;font-size:14px;font-weight:500;color:var(--ink-soft)}
+.ans.is-right{background:var(--good-soft);border-color:var(--good);box-shadow:0 4px 0 var(--good)}
+.ans.is-wrong{background:var(--bad-soft);border-color:var(--bad);box-shadow:0 4px 0 var(--bad)}
+.ans.is-dim{opacity:.45}
+.fb{border-radius:14px;padding:14px 16px;font-size:17px}
+.fb.good{background:var(--good-soft);border:1px solid var(--good-line)}
+.fb.bad{background:var(--bad-soft);border:1px solid var(--bad-line)}
+.fb b{display:block;font-family:var(--font-display);font-size:22px;margin-bottom:2px}
+.proof{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.proof figure{margin:0;display:grid;gap:6px}
+.proof figcaption{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase}
+.proof .view{border:1px solid var(--line);cursor:default}
+.pts{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent-text)}
+/* end */
+.end{max-width:760px;margin:0 auto;text-align:center;display:grid;gap:20px;justify-items:center}
+.end h1{font-family:var(--font-display);font-size:clamp(36px,5vw,60px);line-height:1.05}
+.final{display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+.final .card{min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 22px}
+.final .card.win{border:2px solid var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.final .card span{display:block;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.final .card b{font-family:var(--font-display);font-size:48px;font-variant-numeric:tabular-nums}
+.clues{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;text-align:left;width:100%}
+.clue{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;border-top:6px solid var(--raster)}
+.clue.v{border-top-color:var(--vector)}
+.clue h2{font-family:var(--font-display);font-size:24px;margin-bottom:6px}
+.clue p{color:var(--ink-soft)}
+.recap{width:100%;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.recap div{border-radius:10px;padding:6px 4px;background:var(--panel);border:1px solid var(--line);font-size:12px;font-weight:700;display:grid;gap:2px;justify-items:center}
+.recap .ok{color:var(--good)} .recap .no{color:var(--bad)}
+@media (max-width:900px){.stage,.start{grid-template-columns:minmax(0,1fr)}.side{order:2}.board .view{width:100%}}
+@media (max-width:560px){.recap{grid-template-columns:repeat(4,minmax(0,1fr))}.clues{grid-template-columns:minmax(0,1fr)}.teams{grid-template-columns:minmax(0,1fr)}}
+@keyframes ping{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF7A1A" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/><path d="M7.5 10h5M10 7.5v5" stroke="#F4F6FB"/></svg></span>
+      <span><b>Zoom Detective</b><small>Grade 6 · Unit 2 · Raster or vector?</small></span></div>
+    <div class="scores" id="scores" aria-live="polite"></div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const RASTER_PX = 360, ROUND_SEC = 20, ROUNDS = 8;
+
+/* ---------- pictures: one list of shapes, drawn as vector (SVG) or as raster (pixels on a canvas) ---------- */
+const P = (d, fill, o = {}) => Object.assign({ k: 'path', d, fill }, o);
+const C = (cx, cy, r, fill, o = {}) => Object.assign({ k: 'circle', cx, cy, r, fill }, o);
+const E = (cx, cy, rx, ry, fill, o = {}) => Object.assign({ k: 'ellipse', cx, cy, rx, ry, fill }, o);
+/* a rectangle keeps its width in `w`, so its stroke width goes to `sw` */
+const R = (x, y, w, h, fill, o = {}) => { const r = { k: 'rect', x, y, w, h, fill }; if (o.s) { r.s = o.s; r.sw = o.w || 1; } return r; };
+const ink = '#1B2238';
+function starPath(cx, cy, ro, ri, n = 5) {
+  let d = '';
+  for (let i = 0; i < n * 2; i++) { const r = i % 2 ? ri : ro, a = -Math.PI / 2 + i * Math.PI / n; d += (i ? 'L' : 'M') + (cx + r * Math.cos(a)).toFixed(2) + ' ' + (cy + r * Math.sin(a)).toFixed(2) + ' '; }
+  return d + 'Z';
+}
+function sunRays() {
+  let d = '';
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6, b = 0.16;
+    const p = (r, t) => (50 + r * Math.cos(t)).toFixed(2) + ' ' + (50 + r * Math.sin(t)).toFixed(2);
+    d += `M${p(27, a - b)} L${p(44, a)} L${p(27, a + b)} Z `;
+  }
+  return d;
+}
+const PICS = [
+  { id:'rocket', name:'Rocket', focus:[43.6, 33.6], shapes:[
+    R(0,0,100,100,'#13204A'), C(14,16,1.6,'#FFFFFF'), C(84,20,1.2,'#FFFFFF'), C(20,64,1.1,'#FFFFFF'), C(82,78,1.6,'#FFFFFF'), C(90,48,1,'#FFFFFF'),
+    P('M40.5 74 Q50 100 59.5 74 Z','#FFB400'), P('M45 74 Q50 90 55 74 Z','#FF7A1A'),
+    P('M38.5 52 L24 78 L40 72 Z','#E5484D'), P('M61.5 52 L76 78 L60 72 Z','#E5484D'),
+    P('M50 6 C68 20 70 48 62 74 L38 74 C30 48 32 20 50 6 Z','#EEF2F8',{ s:'#1E263E', w:1.6 }),
+    P('M50 6 C55.94 10.62 60.14 16.7 62.81 23.81 L37.19 23.81 C39.86 16.7 44.06 10.62 50 6 Z','#E5484D',{ s:'#1E263E', w:1.2 }),
+    C(50,40,9,'#2F6BFF',{ s:'#1E263E', w:2.4 }), C(47,37,2.6,'#BFE4FF') ] },
+  { id:'house', name:'House', focus:[36, 34], shapes:[
+    R(0,0,100,100,'#BFE4FF'), C(82,18,9,'#FFC53D'), R(0,78,100,22,'#6CC17A'),
+    R(26,46,48,34,'#FFF1DE',{ s:ink, w:2 }), P('M18 49 L50 21 L82 49 Z','#E5484D',{ s:ink, w:2, lj:'round' }),
+    R(44,60,12,20,'#8A5A3B',{ s:ink, w:1.5 }), R(30,54,10,10,'#8FD0FF',{ s:ink, w:1.5 }), R(60,54,10,10,'#8FD0FF',{ s:ink, w:1.5 }) ] },
+  { id:'heart', name:'Heart', focus:[24, 26], shapes:[
+    R(0,0,100,100,'#FFE7EC'),
+    P('M50 84 C22 66 8 48 16 32 C23 18 40 16 50 30 C60 16 77 18 84 32 C92 48 78 66 50 84 Z','#E5484D',{ s:'#7A1F2B', w:2.5 }),
+    E(30,36,4.5,7.5,'#FF9AA8') ] },
+  { id:'fish', name:'Fish', focus:[32, 46], shapes:[
+    R(0,0,100,100,'#9FD8FF'), P('M68 52 L90 37 L88 67 Z','#FF7A1A',{ s:ink, w:2, lj:'round' }),
+    P('M38 37 Q48 24 58 37 Z','#FFB400',{ s:ink, w:1.6 }),
+    E(45,52,28,17,'#FF7A1A',{ s:ink, w:2 }), P('M54 40 Q60 52 54 64','none',{ s:ink, w:1.6 }),
+    C(32,48,4.2,'#FFFFFF',{ s:ink, w:1.2 }), C(31,48,2,ink), C(20,26,3,'none',{ s:'#FFFFFF', w:1.2 }), C(13,15,2,'none',{ s:'#FFFFFF', w:1.2 }) ] },
+  { id:'sun', name:'Sun', focus:[50, 29], shapes:[
+    R(0,0,100,100,'#FFE7D4'), P(sunRays(),'#FFB400'), C(50,50,22,'#FFC53D',{ s:'#E08A00', w:2 }),
+    C(42,46,2.6,ink), C(58,46,2.6,ink), P('M40 56 Q50 65 60 56','none',{ s:ink, w:2.6, lc:'round' }) ] },
+  { id:'tree', name:'Tree', focus:[50, 20], shapes:[
+    R(0,0,100,100,'#DFF3FF'), E(50,92,40,8,'#6CC17A'), R(45,56,10,32,'#8A5A3B',{ s:ink, w:1.5 }),
+    C(34,50,14,'#3FA35B',{ s:ink, w:1.5 }), C(66,50,14,'#3FA35B',{ s:ink, w:1.5 }), C(50,40,21,'#4DB868',{ s:ink, w:1.5 }),
+    C(42,36,3,'#E5484D'), C(58,44,3,'#E5484D'), C(36,54,3,'#E5484D'), C(64,54,3,'#E5484D') ] },
+  { id:'smiley', name:'Smiley', focus:[38, 40], shapes:[
+    R(0,0,100,100,'#EEF1F7'), C(50,50,38,'#FFD23F',{ s:ink, w:3 }),
+    E(38,42,4,7,ink), E(62,42,4,7,ink), P('M32 58 Q50 76 68 58','none',{ s:ink, w:4, lc:'round' }) ] },
+  { id:'badge', name:'Badge', focus:[50, 26], shapes:[
+    R(0,0,100,100,'#E9EDF5'), C(50,50,42,'#2F6BFF',{ s:ink, w:3 }), C(50,50,35,'none',{ s:'#FFFFFF', w:1.4, dash:[3,2.4] }),
+    P(starPath(50,48,22,9.5),'#FF7A1A',{ s:ink, w:2, lj:'round' }) ] }
+];
+function shapeSVG(s) {
+  const st = (s.s ? ` stroke="${s.s}" stroke-width="${s.w || 1}"` : '') + (s.lc ? ` stroke-linecap="${s.lc}"` : '') + (s.lj ? ` stroke-linejoin="${s.lj}"` : '') + (s.dash ? ` stroke-dasharray="${s.dash.join(' ')}"` : '');
+  const f = ` fill="${s.fill}"`;
+  if (s.k === 'rect') return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}"${f}${s.s ? ` stroke="${s.s}" stroke-width="${s.sw}"` : ''}/>`;
+  if (s.k === 'circle') return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}"${f}${st}/>`;
+  if (s.k === 'ellipse') return `<ellipse cx="${s.cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}"${f}${st}/>`;
+  return `<path d="${s.d}"${f}${st}/>`;
+}
+function svgMarkup(p) { return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${p.shapes.map(shapeSVG).join('')}</svg>`; }
+function drawRaster(cv, p) {
+  const g = cv.getContext('2d'), k = cv.width / 100;
+  g.setTransform(k, 0, 0, k, 0, 0);
+  for (const s of p.shapes) {
+    let path = new Path2D();
+    if (s.k === 'rect') path.rect(s.x, s.y, s.w, s.h);
+    else if (s.k === 'circle') path.arc(s.cx, s.cy, s.r, 0, Math.PI * 2);
+    else if (s.k === 'ellipse') path.ellipse(s.cx, s.cy, s.rx, s.ry, 0, 0, Math.PI * 2);
+    else path = new Path2D(s.d);
+    if (s.fill && s.fill !== 'none') { g.fillStyle = s.fill; g.fill(path); }
+    if (s.s) {
+      g.strokeStyle = s.s; g.lineWidth = s.k === 'rect' ? s.sw : (s.w || 1);
+      g.lineCap = s.lc || 'butt'; g.lineJoin = s.lj || 'miter'; g.setLineDash(s.dash || []);
+      g.stroke(path); g.setLineDash([]);
+    }
+  }
+}
+const shapeCount = p => p.shapes.length;
+
+/* A viewer shows one picture as raster or vector at a zoom level, centred on a point. */
+function makeViewer(el, pic, type) {
+  el.innerHTML = '';
+  let cv = null, svg = null;
+  if (type === 'raster') { cv = document.createElement('canvas'); cv.width = cv.height = RASTER_PX; drawRaster(cv, pic); el.appendChild(cv); }
+  else { el.insertAdjacentHTML('beforeend', svgMarkup(pic)); svg = $('svg', el); }
+  const v = { z: 1, cx: 50, cy: 50, set(z, cx, cy) {
+    v.z = z; v.cx = cx; v.cy = cy;
+    const m = 100 - 100 / z, vx = Math.min(Math.max(cx - 50 / z, 0), m), vy = Math.min(Math.max(cy - 50 / z, 0), m);
+    v.vx = vx; v.vy = vy;
+    if (svg) svg.setAttribute('viewBox', `${vx} ${vy} ${100 / z} ${100 / z}`);
+    if (cv) { const W = el.clientWidth || 300, S = W * z; cv.style.width = S + 'px'; cv.style.height = S + 'px'; cv.style.left = (-vx / 100 * S) + 'px'; cv.style.top = (-vy / 100 * S) + 'px'; }
+  } };
+  return v;
+}
+
+/* ---------- state ---------- */
+const state = { mode: 'solo', teams: ['Team A', 'Team B'], score: [0, 0], round: 0, deck: [], log: [], sound: true };
+const view = $('#view'), scoresEl = $('#scores');
+let timerId = null;
+
+/* ---------- sound ---------- */
+let actx = null;
+function sfx(kind) {
+  if (!state.sound) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    actx = actx || new AC(); if (actx.state === 'suspended') actx.resume();
+    const now = actx.currentTime + 0.01;
+    const seq = { good:[[660,0,.09],[880,.09,.16]], bad:[[196,0,.22]], tick:[[880,0,.03]], win:[[523,0,.1],[659,.1,.1],[784,.2,.1],[1047,.3,.28]] }[kind] || [];
+    for (const [f, t, d] of seq) {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = kind === 'bad' ? 'square' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, now + t); g.gain.exponentialRampToValueAtTime(kind === 'bad' ? 0.04 : 0.08, now + t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t + d); o.connect(g); g.connect(actx.destination); o.start(now + t); o.stop(now + t + d + 0.03);
+    }
+  } catch (e) { /* no audio */ }
+}
+
+const ICON = {
+  raster: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="5" height="5"/><rect x="9.5" y="3" width="5" height="5" opacity=".55"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="9.5" width="5" height="5" opacity=".55"/><rect x="9.5" y="9.5" width="5" height="5"/><rect x="16" y="9.5" width="5" height="5" opacity=".55"/><rect x="3" y="16" width="5" height="5"/><rect x="9.5" y="16" width="5" height="5" opacity=".55"/><rect x="16" y="16" width="5" height="5"/></svg>',
+  vector: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4.5 18C8 7 16 7 19.5 18"/><rect x="2.5" y="16.5" width="4" height="4" rx=".5"/><rect x="17.5" y="16.5" width="4" height="4" rx=".5"/><path d="M4.5 9h15"/><circle cx="12" cy="9" r="1.8"/></svg>',
+  sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg>',
+  mute: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>'
+};
+
+function renderScores() {
+  const sound = `<button class="key small" type="button" id="snd" aria-label="${state.sound ? 'Turn sound off' : 'Turn sound on'}">${state.sound ? ICON.sound : ICON.mute}</button>`;
+  if (state.mode === 'teams') {
+    const t = state.round % 2;
+    scoresEl.innerHTML = state.teams.map((n, i) => `<span class="chip${state.phase === 'round' && i === t ? ' turn' : ''}">${esc(n)} <b>${state.score[i]}</b></span>`).join('') + sound;
+  } else scoresEl.innerHTML = `<span class="chip">Score <b>${state.score[0]}</b></span>` + sound;
+  $('#snd').addEventListener('click', () => { state.sound = !state.sound; renderScores(); });
+}
+
+/* ---------- start ---------- */
+function renderStart() {
+  state.phase = 'start'; clearInterval(timerId);
+  view.innerHTML = `
+    <section class="start">
+      <div>
+        <h1>Zoom <span>Detective</span></h1>
+        <p class="lead">Every mystery picture was saved either as raster pixels or as vector shapes. At normal size they look the same. Zoom in and find the clues!</p>
+        <ul class="rules">
+          <li><span class="n">1</span><span>Zoom in with the slider. Tap the picture to zoom into that spot.</span></li>
+          <li><span class="n">2</span><span>See little squares and stair-step edges? That is <b>raster</b>. Edges stay smooth? That is <b>vector</b>.</span></li>
+          <li><span class="n">3</span><span>${ROUNDS} rounds, ${ROUND_SEC} seconds each. A right answer gives 100 points plus a speed bonus.</span></li>
+        </ul>
+        <div class="modes" role="group" aria-label="Game mode">
+          <button class="key" type="button" data-mode="solo" aria-pressed="${state.mode === 'solo'}">Solo</button>
+          <button class="key" type="button" data-mode="teams" aria-pressed="${state.mode === 'teams'}">Two teams</button>
+        </div>
+        <div class="teams" ${state.mode === 'teams' ? '' : 'hidden'}>
+          <label for="t1">First team<input id="t1" maxlength="20" value="${esc(state.teams[0])}"></label>
+          <label for="t2">Second team<input id="t2" maxlength="20" value="${esc(state.teams[1])}"></label>
+        </div>
+        <button class="key primary" type="button" id="go">Start the game →</button>
+      </div>
+      <div class="hero-art" aria-label="The same rocket zoomed in: as raster pixels and as vector shapes">
+        <figure><div class="view" id="h1"></div><figcaption>Raster · zoom 8×</figcaption></figure>
+        <figure><div class="view" id="h2"></div><figcaption>Vector · zoom 8×</figcaption></figure>
+      </div>
+    </section>`;
+  const a = makeViewer($('#h1'), PICS[0], 'raster'), b = makeViewer($('#h2'), PICS[0], 'vector');
+  requestAnimationFrame(() => { a.set(8, 45.3, 35.6); b.set(8, 45.3, 35.6); });
+  $$('[data-mode]').forEach(btn => btn.addEventListener('click', () => { state.mode = btn.dataset.mode; renderStart(); }));
+  $('#go').addEventListener('click', () => {
+    if (state.mode === 'teams') state.teams = [($('#t1').value.trim() || 'Team A'), ($('#t2').value.trim() || 'Team B')];
+    state.score = [0, 0]; state.round = 0; state.log = [];
+    const types = shuffle(['raster', 'raster', 'raster', 'raster', 'vector', 'vector', 'vector', 'vector']);
+    state.deck = shuffle(PICS).slice(0, ROUNDS).map((p, i) => ({ pic: p, type: types[i] }));
+    sfx('tick'); renderRound();
+  });
+  renderScores();
+}
+
+/* ---------- a round ---------- */
+function renderRound() {
+  state.phase = 'round';
+  const r = state.deck[state.round], team = state.round % 2;
+  let left = ROUND_SEC, done = false, touched = false;
+  view.innerHTML = `
+    <section class="stage">
+      <div class="board">
+        <div class="board-head"><span>Mystery picture ${state.round + 1}</span><span>Zoom up to 12×</span></div>
+        <div class="view" id="mv" role="img" aria-label="Mystery picture: ${esc(r.pic.name)}"></div>
+        <div class="zoom">
+          <button class="key" type="button" id="zout" aria-label="Zoom out">−</button>
+          <input type="range" id="zr" min="1" max="12" step="0.5" value="1" aria-label="Zoom">
+          <button class="key" type="button" id="zin" aria-label="Zoom in">+</button>
+          <span class="zval" id="zv">1×</span>
+        </div>
+        <p class="tip">Tip: tap the picture on an edge, where two colours meet.</p>
+      </div>
+      <aside class="side">
+        <div class="round-lbl"><span>Round ${state.round + 1} of ${ROUNDS}</span><span class="tsec" id="ts">${left} s</span></div>
+        ${state.mode === 'teams' ? `<p class="who">${esc(state.teams[team])}, your turn!</p>` : `<p class="who">${esc(r.pic.name)}</p>`}
+        <div class="timer" id="tb"><i></i></div>
+        <p class="q">How was this picture saved?</p>
+        <div class="answers">
+          <button class="key ans r" type="button" data-a="raster"><span class="ic">${ICON.raster}</span><span>Raster<small>made of pixels · key R</small></span></button>
+          <button class="key ans v" type="button" data-a="vector"><span class="ic">${ICON.vector}</span><span>Vector<small>made of shapes · key V</small></span></button>
+        </div>
+        <div id="out" aria-live="polite"></div>
+      </aside>
+    </section>`;
+  const mv = $('#mv'), zr = $('#zr'), zv = $('#zv'), viewer = makeViewer(mv, r.pic, r.type);
+  const [fx, fy] = r.pic.focus;
+  let cx = 50, cy = 50;
+  const upd = () => {
+    const z = +zr.value;
+    if (!touched) { cx = fx + (50 - fx) / z; cy = fy + (50 - fy) / z; }
+    viewer.set(z, cx, cy); zv.textContent = (z % 1 ? z.toFixed(1) : z) + '×';
+  };
+  zr.addEventListener('input', upd);
+  $('#zin').addEventListener('click', () => { zr.value = Math.min(12, +zr.value + 1); upd(); });
+  $('#zout').addEventListener('click', () => { zr.value = Math.max(1, +zr.value - 1); upd(); });
+  mv.addEventListener('click', ev => {
+    const b = mv.getBoundingClientRect(), z = +zr.value;
+    cx = viewer.vx + (ev.clientX - b.left) / b.width * 100 / z; cy = viewer.vy + (ev.clientY - b.top) / b.height * 100 / z; touched = true;
+    if (z < 4) zr.value = Math.min(12, z + 3);
+    const ping = document.createElement('span'); ping.className = 'ping'; ping.style.left = (ev.clientX - b.left) + 'px'; ping.style.top = (ev.clientY - b.top) + 'px';
+    mv.appendChild(ping); setTimeout(() => ping.remove(), 650);
+    upd();
+  });
+  window.onresize = () => { if (mv.isConnected) viewer.set(viewer.z, viewer.cx, viewer.cy); };
+  requestAnimationFrame(upd);
+  renderScores();
+
+  const bar = $('#tb i'), ts = $('#ts'), tb = $('#tb');
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    if (!mv.isConnected) { clearInterval(timerId); return; }
+    left--; ts.textContent = left + ' s'; bar.style.transform = `scaleX(${left / ROUND_SEC})`;
+    if (left <= 5) { tb.classList.add('low'); if (left > 0) sfx('tick'); }
+    if (left <= 0) answer(null);
+  }, 1000);
+
+  const btns = $$('.ans');
+  btns.forEach(b => b.addEventListener('click', () => answer(b.dataset.a)));
+  function answer(a) {
+    if (done) return; done = true; clearInterval(timerId);
+    const ok = a === r.type, pts = ok ? 100 + left * 5 : 0;
+    const who = state.mode === 'teams' ? team : 0;
+    state.score[who] += pts;
+    state.log.push({ pic: r.pic.name, type: r.type, ok, team: who });
+    btns.forEach(b => { b.disabled = true; if (b.dataset.a === r.type) b.classList.add('is-right'); else if (b.dataset.a === a) b.classList.add('is-wrong'); else b.classList.add('is-dim'); });
+    sfx(ok ? 'good' : 'bad');
+    const clue = r.type === 'raster'
+      ? `It was saved as <b style="display:inline;font:inherit">raster</b>: ${RASTER_PX} × ${RASTER_PX} pixels. Zoomed in, the edges turn into little squares.`
+      : `It was saved as <b style="display:inline;font:inherit">vector</b>: ${shapeCount(r.pic)} shapes. The computer redraws them at any zoom, so edges stay smooth.`;
+    $('#out').innerHTML = `
+      <div class="fb ${ok ? 'good' : 'bad'}"><b>${ok ? 'Case solved!' : a ? 'Not this time.' : 'Time is up!'}</b>${clue}${ok ? ` <span class="pts">+${pts}</span>` : ''}</div>
+      <div class="proof" style="margin-top:14px">
+        <figure><div class="view" id="p1"></div><figcaption>As raster · 8×</figcaption></figure>
+        <figure><div class="view" id="p2"></div><figcaption>As vector · 8×</figcaption></figure>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="key primary" type="button" id="nx">${state.round + 1 < ROUNDS ? 'Next picture →' : 'See the results →'}</button></div>`;
+    const p1 = makeViewer($('#p1'), r.pic, 'raster'), p2 = makeViewer($('#p2'), r.pic, 'vector');
+    requestAnimationFrame(() => { p1.set(8, fx + 6 / 8, fy + 6 / 8); p2.set(8, fx + 6 / 8, fy + 6 / 8); });
+    if (!touched && +zr.value < 6) { zr.value = 8; upd(); }
+    renderScores();
+    const nx = $('#nx'); nx.focus({ preventScroll: true });
+    nx.addEventListener('click', () => { state.round++; if (state.round < ROUNDS) renderRound(); else renderEnd(); });
+  }
+  state.keyAnswer = k => { if (!done) answer(k); else { const nx = $('#nx'); if (nx && k === 'next') nx.click(); } };
+  state.keyZoom = d => { zr.value = Math.max(1, Math.min(12, +zr.value + d)); upd(); };
+}
+
+/* ---------- end ---------- */
+function renderEnd() {
+  state.phase = 'end'; clearInterval(timerId); sfx('win');
+  const right = state.log.filter(l => l.ok).length;
+  let head, cards;
+  if (state.mode === 'teams') {
+    const [a, b] = state.score, w = a === b ? -1 : a > b ? 0 : 1;
+    head = w < 0 ? 'It’s a draw!' : `${esc(state.teams[w])} wins!`;
+    cards = state.teams.map((n, i) => `<div class="card${i === w ? ' win' : ''}"><span>${esc(n)}</span><b>${state.score[i]}</b></div>`).join('');
+  } else {
+    head = right >= 7 ? 'Master detective!' : right >= 5 ? 'Sharp eyes!' : 'Keep practising!';
+    cards = `<div class="card win"><span>Score</span><b>${state.score[0]}</b></div><div class="card"><span>Cases solved</span><b>${right}/${ROUNDS}</b></div>`;
+  }
+  view.innerHTML = `
+    <section class="end">
+      <h1>${head}</h1>
+      <div class="final">${cards}</div>
+      <div class="recap" aria-label="Round results">${state.log.map((l, i) => `<div><span>${i + 1}. ${esc(l.pic)}</span><span>${l.type === 'raster' ? 'Raster' : 'Vector'}</span><span class="${l.ok ? 'ok' : 'no'}">${l.ok ? '✓ solved' : '✗ missed'}</span></div>`).join('')}</div>
+      <div class="clues">
+        <div class="clue"><h2>Raster clues</h2><p>Made of pixels. Zoom in and you see squares and stair-step edges. Great for photos, but it gets blocky when enlarged.</p></div>
+        <div class="clue v"><h2>Vector clues</h2><p>Made of shapes described by numbers. Edges stay smooth at any zoom. Great for logos and icons, but not for photos.</p></div>
+      </div>
+      <button class="key primary" type="button" id="again">Play again</button>
+    </section>`;
+  $('#again').addEventListener('click', renderStart);
+  renderScores();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.closest && e.target.closest('input:not([type="range"]), textarea')) return;
+  if (state.phase !== 'round') return;
+  const k = e.key.toLowerCase();
+  if (k === 'r') state.keyAnswer('raster');
+  else if (k === 'v') state.keyAnswer('vector');
+  else if (k === 'enter') state.keyAnswer('next');
+  else if (k === '+' || k === '=') state.keyZoom(1);
+  else if (k === '-') state.keyZoom(-1);
+});
+renderStart();
+})();
+</script>
+
+</body></html>
